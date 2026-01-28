@@ -25,41 +25,48 @@ class CountdownApp extends StatelessWidget {
 }
 
 ThemeData _buildTheme(Brightness brightness) {
-  final isDark = brightness == Brightness.dark;
   final base = ThemeData(
     brightness: brightness,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF6C5CE7),
-      brightness: brightness,
+      seedColor: const Color(0xFF7D5CFF),
+      brightness: Brightness.dark,
     ),
     useMaterial3: true,
   );
 
   return base.copyWith(
     scaffoldBackgroundColor: Colors.transparent,
-    textTheme: base.textTheme.copyWith(
-      displayLarge: base.textTheme.displayLarge?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: -1.5,
-      ),
-      headlineMedium: base.textTheme.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
+    textTheme: base.textTheme.apply(
+      bodyColor: const Color(0xFFDAD2FF),
+      displayColor: Colors.white,
+      fontFamily: 'Roboto',
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+        backgroundColor: const Color(0xFF5C45D6),
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
         ),
         textStyle: base.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
         ),
       ),
     ),
-    cardColor: isDark
-        ? const Color(0xFF1F1F2B).withOpacity(0.7)
-        : Colors.white.withOpacity(0.65),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white,
+        side: BorderSide(
+          color: Colors.white.withOpacity(0.25),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+      ),
+    ),
+    cardColor: const Color(0xFF2C1D6B).withOpacity(0.65),
   );
 }
 
@@ -135,51 +142,96 @@ class _HomeScreenState extends State<HomeScreen>
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFEEF2FF), Color(0xFFE6FCF5)],
+            colors: [Color(0xFF2B165F), Color(0xFF1C124B)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: _GlassCard(
-                    child: Padding(
-                      padding: const EdgeInsets.all(28),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Countdown Weeks',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.access_time_rounded,
+                          color: Colors.white.withOpacity(0.8),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'COUNTDOWN WEEKS',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                            letterSpacing: 1.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _DatePill(
+                      label: _targetDate == null
+                          ? 'Selecciona una fecha'
+                          : formatDate(_targetDate!),
+                    ),
+                    const Spacer(),
+                    _GlassCard(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 28,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildCountdown(theme),
+                            const SizedBox(height: 20),
+                            const _IndicatorDots(count: 7),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Cada día estás más cerca ✨',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withOpacity(0.6),
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          _buildCountdown(theme),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Cada día estás más cerca',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withOpacity(0.65),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 28),
-                          ElevatedButton(
-                            onPressed: _navigateToDateScreen,
-                            child: const Text('Cambiar fecha'),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _navigateToDateScreen,
+                      icon: Icon(
+                        Icons.settings_outlined,
+                        color: Colors.white.withOpacity(0.75),
+                        size: 18,
+                      ),
+                      label: Text(
+                        'Cambiar fecha',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: Colors.white.withOpacity(0.8),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'countdown weeks',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.white.withOpacity(0.25),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
             ),
@@ -193,7 +245,9 @@ class _HomeScreenState extends State<HomeScreen>
     if (_targetDate == null) {
       return Text(
         'Selecciona una fecha para comenzar',
-        style: theme.textTheme.bodyLarge,
+        style: theme.textTheme.bodyLarge?.copyWith(
+          color: Colors.white.withOpacity(0.7),
+        ),
         textAlign: TextAlign.center,
       );
     }
@@ -214,8 +268,9 @@ class _HomeScreenState extends State<HomeScreen>
         child: Text(
           '¡Hoy es el día!',
           key: const ValueKey('today'),
-          style: theme.textTheme.headlineLarge?.copyWith(
+          style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
           textAlign: TextAlign.center,
         ),
@@ -227,28 +282,50 @@ class _HomeScreenState extends State<HomeScreen>
       final days = difference % 7;
       return Column(
         children: [
-          _AnimatedValueText(
-            value: weeks.toString(),
-            style: theme.textTheme.displayLarge?.copyWith(
-              fontSize: 48,
-              color: theme.colorScheme.primary,
+          Text(
+            'FALTAN',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: Colors.white.withOpacity(0.45),
+              letterSpacing: 2,
             ),
-            label: 'semanas',
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _AnimatedValueText(
+                value: weeks.toString(),
+                style: theme.textTheme.displayLarge?.copyWith(
+                  fontSize: 54,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+                label: 'SEMANAS',
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  width: 1,
+                  height: 60,
+                  color: Colors.white.withOpacity(0.12),
+                ),
+              ),
+              _AnimatedValueText(
+                value: days.toString(),
+                style: theme.textTheme.displayLarge?.copyWith(
+                  fontSize: 54,
+                  color: Colors.white.withOpacity(0.8),
+                  fontWeight: FontWeight.w500,
+                ),
+                label: 'DÍAS',
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-          _AnimatedValueText(
-            value: days.toString(),
-            style: theme.textTheme.displayLarge?.copyWith(
-              fontSize: 42,
-              color: theme.colorScheme.secondary,
-            ),
-            label: 'días',
-          ),
-          const SizedBox(height: 12),
           Text(
             'Faltan $weeks semanas y $days días',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withOpacity(0.6),
             ),
           ),
         ],
@@ -262,7 +339,8 @@ class _HomeScreenState extends State<HomeScreen>
       child: Text(
         'Han pasado $pastDays días desde tu fecha',
         key: ValueKey('past-$pastDays'),
-        style: theme.textTheme.headlineSmall?.copyWith(
+        style: theme.textTheme.bodyLarge?.copyWith(
+          color: Colors.white.withOpacity(0.8),
           fontWeight: FontWeight.w600,
         ),
         textAlign: TextAlign.center,
@@ -344,11 +422,12 @@ class _DateScreenState extends State<DateScreen> {
       appBar: AppBar(
         title: const Text('Elegir fecha'),
         backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
       ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFEEF2FF), Color(0xFFE6FCF5)],
+            colors: [Color(0xFF2B165F), Color(0xFF1C124B)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -367,6 +446,7 @@ class _DateScreenState extends State<DateScreen> {
                         'Selecciona tu fecha objetivo',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -374,9 +454,9 @@ class _DateScreenState extends State<DateScreen> {
                       Text(
                         _selectedDate == null
                             ? 'Ninguna fecha seleccionada'
-                            : _formatDate(_selectedDate!),
+                            : formatDate(_selectedDate!),
                         style: theme.textTheme.headlineSmall?.copyWith(
-                          color: theme.colorScheme.primary,
+                          color: Colors.white.withOpacity(0.9),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -387,9 +467,6 @@ class _DateScreenState extends State<DateScreen> {
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
                         child: const Text('Elegir fecha'),
@@ -408,24 +485,6 @@ class _DateScreenState extends State<DateScreen> {
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final months = [
-      'enero',
-      'febrero',
-      'marzo',
-      'abril',
-      'mayo',
-      'junio',
-      'julio',
-      'agosto',
-      'septiembre',
-      'octubre',
-      'noviembre',
-      'diciembre',
-    ];
-    return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
 }
 
@@ -463,7 +522,8 @@ class _AnimatedValueText extends StatelessWidget {
         Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: Colors.white.withOpacity(0.55),
+            letterSpacing: 1.5,
           ),
         ),
       ],
@@ -488,11 +548,11 @@ class _GlassCard extends StatelessWidget {
             color: theme.cardColor,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: theme.colorScheme.onSurface.withOpacity(0.08),
+              color: Colors.white.withOpacity(0.12),
             ),
             boxShadow: [
               BoxShadow(
-                color: theme.colorScheme.shadow.withOpacity(0.15),
+                color: Colors.black.withOpacity(0.35),
                 blurRadius: 24,
                 offset: const Offset(0, 14),
               ),
@@ -503,4 +563,88 @@ class _GlassCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DatePill extends StatelessWidget {
+  const _DatePill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.calendar_today_outlined,
+            size: 16,
+            color: Colors.white.withOpacity(0.75),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withOpacity(0.85),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IndicatorDots extends StatelessWidget {
+  const _IndicatorDots({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        count,
+        (index) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: index == count ~/ 2
+                  ? Colors.white.withOpacity(0.7)
+                  : Colors.white.withOpacity(0.25),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String formatDate(DateTime date) {
+  final months = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
+  ];
+  return '${date.day} de ${months[date.month - 1]} de ${date.year}';
 }
