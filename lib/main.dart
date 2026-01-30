@@ -1,10 +1,14 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.instance.initialize();
   runApp(const CountdownApp());
 }
 
@@ -370,12 +374,43 @@ class DateScreen extends StatefulWidget {
 
 class _DateScreenState extends State<DateScreen> {
   static const _prefsKey = 'target_date';
+  static const _clockInEnabledKey = 'clock_in_enabled';
+  static const _breakEnabledKey = 'break_enabled';
+  static const _lunchEnabledKey = 'lunch_enabled';
+  static const _clockInTimeKey = 'clock_in_time';
+  static const _breakTimeKey = 'break_time';
+  static const _lunchTimeKey = 'lunch_time';
   DateTime? _selectedDate;
+  bool _clockInEnabled = true;
+  bool _breakEnabled = true;
+  bool _lunchEnabled = true;
+  TimeOfDay _clockInTime = const TimeOfDay(hour: 9, minute: 0);
+  TimeOfDay _breakTime = const TimeOfDay(hour: 11, minute: 0);
+  TimeOfDay _lunchTime = const TimeOfDay(hour: 13, minute: 0);
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.initialDate;
+    _loadNotificationSettings();
+    NotificationService.instance.requestPermissions();
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _clockInEnabled = prefs.getBool(_clockInEnabledKey) ?? true;
+      _breakEnabled = prefs.getBool(_breakEnabledKey) ?? true;
+      _lunchEnabled = prefs.getBool(_lunchEnabledKey) ?? true;
+      _clockInTime =
+          _timeFromString(prefs.getString(_clockInTimeKey)) ??
+              _clockInTime;
+      _breakTime =
+          _timeFromString(prefs.getString(_breakTimeKey)) ?? _breakTime;
+      _lunchTime =
+          _timeFromString(prefs.getString(_lunchTimeKey)) ?? _lunchTime;
+    });
   }
 
   Future<void> _pickDate() async {
@@ -411,8 +446,72 @@ class _DateScreenState extends State<DateScreen> {
     if (_selectedDate == null) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, _selectedDate!.toIso8601String());
+    await _persistNotificationSettings(prefs);
+    await _scheduleNotifications();
     if (!mounted) return;
     Navigator.of(context).pop(_selectedDate);
+  }
+
+  Future<void> _persistNotificationSettings(SharedPreferences prefs) async {
+    await prefs.setBool(_clockInEnabledKey, _clockInEnabled);
+    await prefs.setBool(_breakEnabledKey, _breakEnabled);
+    await prefs.setBool(_lunchEnabledKey, _lunchEnabled);
+    await prefs.setString(_clockInTimeKey, _timeToString(_clockInTime));
+    await prefs.setString(_breakTimeKey, _timeToString(_breakTime));
+    await prefs.setString(_lunchTimeKey, _timeToString(_lunchTime));
+  }
+
+  Future<void> _scheduleNotifications() async {
+    await NotificationService.instance.scheduleDailyNotifications(
+      clockInEnabled: _clockInEnabled,
+      clockInTime: _clockInTime,
+      breakEnabled: _breakEnabled,
+      breakTime: _breakTime,
+      lunchEnabled: _lunchEnabled,
+      lunchTime: _lunchTime,
+    );
+  }
+
+  Future<void> _toggleAndSchedule({
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) async {
+    setState(() {
+      onChanged(value);
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await _persistNotificationSettings(prefs);
+    await _scheduleNotifications();
+  }
+
+  Future<void> _pickTime({
+    required TimeOfDay initialTime,
+    required ValueChanged<TimeOfDay> onChanged,
+  }) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: theme.colorScheme.primary,
+              surface: theme.cardColor,
+            ),
+            dialogBackgroundColor: theme.cardColor,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (picked == null) return;
+    setState(() {
+      onChanged(picked);
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await _persistNotificationSettings(prefs);
+    await _scheduleNotifications();
   }
 
   @override
@@ -475,6 +574,56 @@ class _DateScreenState extends State<DateScreen> {
                       ElevatedButton(
                         onPressed: _selectedDate == null ? null : _saveDate,
                         child: const Text('Guardar fecha'),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Recordatorios diarios',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _NotificationRow(
+                        title: 'Clock In',
+                        time: _clockInTime,
+                        enabled: _clockInEnabled,
+                        onToggle: (value) => _toggleAndSchedule(
+                          value: value,
+                          onChanged: (enabled) => _clockInEnabled = enabled,
+                        ),
+                        onTimeTap: () => _pickTime(
+                          initialTime: _clockInTime,
+                          onChanged: (time) => _clockInTime = time,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _NotificationRow(
+                        title: 'Break',
+                        time: _breakTime,
+                        enabled: _breakEnabled,
+                        onToggle: (value) => _toggleAndSchedule(
+                          value: value,
+                          onChanged: (enabled) => _breakEnabled = enabled,
+                        ),
+                        onTimeTap: () => _pickTime(
+                          initialTime: _breakTime,
+                          onChanged: (time) => _breakTime = time,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _NotificationRow(
+                        title: 'Lunch',
+                        time: _lunchTime,
+                        enabled: _lunchEnabled,
+                        onToggle: (value) => _toggleAndSchedule(
+                          value: value,
+                          onChanged: (enabled) => _lunchEnabled = enabled,
+                        ),
+                        onTimeTap: () => _pickTime(
+                          initialTime: _lunchTime,
+                          onChanged: (time) => _lunchTime = time,
+                        ),
                       ),
                     ],
                   ),
@@ -631,6 +780,69 @@ class _IndicatorDots extends StatelessWidget {
   }
 }
 
+class _NotificationRow extends StatelessWidget {
+  const _NotificationRow({
+    required this.title,
+    required this.time,
+    required this.enabled,
+    required this.onToggle,
+    required this.onTimeTap,
+  });
+
+  final String title;
+  final TimeOfDay time;
+  final bool enabled;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onTimeTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withOpacity(0.85),
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: enabled ? onTimeTap : null,
+            child: Text(
+              _formatTime(time),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: enabled
+                    ? Colors.white.withOpacity(0.9)
+                    : Colors.white.withOpacity(0.35),
+              ),
+            ),
+          ),
+          Switch(
+            value: enabled,
+            onChanged: onToggle,
+            activeColor: Colors.white,
+            activeTrackColor: Colors.white.withOpacity(0.35),
+            inactiveThumbColor: Colors.white.withOpacity(0.4),
+            inactiveTrackColor: Colors.white.withOpacity(0.1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String formatDate(DateTime date) {
   final months = [
     'enero',
@@ -647,4 +859,137 @@ String formatDate(DateTime date) {
     'diciembre',
   ];
   return '${date.day} de ${months[date.month - 1]} de ${date.year}';
+}
+
+String _formatTime(TimeOfDay time) {
+  final hour = time.hour.toString().padLeft(2, '0');
+  final minute = time.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
+TimeOfDay? _timeFromString(String? value) {
+  if (value == null || !value.contains(':')) return null;
+  final parts = value.split(':');
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  return TimeOfDay(hour: hour, minute: minute);
+}
+
+String _timeToString(TimeOfDay time) => _formatTime(time);
+
+class NotificationService {
+  NotificationService._internal();
+
+  static final NotificationService instance = NotificationService._internal();
+
+  static const _clockInId = 1001;
+  static const _breakId = 1002;
+  static const _lunchId = 1003;
+
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
+
+  Future<void> initialize() async {
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.local);
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings();
+    const settings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
+    await _plugin.initialize(settings);
+  }
+
+  Future<void> requestPermissions() async {
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+        DarwinFlutterLocalNotificationsPlugin>();
+    await ios?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.requestNotificationsPermission();
+  }
+
+  Future<void> scheduleDailyNotifications({
+    required bool clockInEnabled,
+    required TimeOfDay clockInTime,
+    required bool breakEnabled,
+    required TimeOfDay breakTime,
+    required bool lunchEnabled,
+    required TimeOfDay lunchTime,
+  }) async {
+    await _plugin.cancel(_clockInId);
+    await _plugin.cancel(_breakId);
+    await _plugin.cancel(_lunchId);
+
+    if (clockInEnabled) {
+      await _scheduleDaily(
+        id: _clockInId,
+        title: 'Clock In',
+        body: 'Hora de iniciar tu jornada.',
+        time: clockInTime,
+      );
+    }
+    if (breakEnabled) {
+      await _scheduleDaily(
+        id: _breakId,
+        title: 'Break',
+        body: 'Hora de tu descanso.',
+        time: breakTime,
+      );
+    }
+    if (lunchEnabled) {
+      await _scheduleDaily(
+        id: _lunchId,
+        title: 'Lunch',
+        body: 'Hora de tu almuerzo.',
+        time: lunchTime,
+      );
+    }
+  }
+
+  Future<void> _scheduleDaily({
+    required int id,
+    required String title,
+    required String body,
+    required TimeOfDay time,
+  }) async {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    await _plugin.zonedSchedule(
+      id,
+      title,
+      body,
+      scheduled,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'countdown_reminders',
+          'Countdown Reminders',
+          channelDescription: 'Recordatorios diarios de Clock In, Break y Lunch',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidAllowWhileIdle: true,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
 }
