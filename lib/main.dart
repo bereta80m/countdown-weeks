@@ -33,7 +33,7 @@ ThemeData _buildTheme(Brightness brightness) {
     brightness: brightness,
     colorScheme: ColorScheme.fromSeed(
       seedColor: const Color(0xFF7D5CFF),
-      brightness: Brightness.dark,
+      brightness: brightness,
     ),
     useMaterial3: true,
   );
