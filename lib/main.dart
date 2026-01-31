@@ -891,28 +891,27 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   Future<void> initialize() async {
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.local);
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
-    const settings = InitializationSettings(
-      android: androidInit,
-      iOS: iosInit,
-    );
-    await _plugin.initialize(settings);
+    try {
+      tz.initializeTimeZones();
+      tz.setLocalLocation(tz.local);
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const settings = InitializationSettings(android: androidInit);
+      await _plugin.initialize(settings);
+    } catch (error, stackTrace) {
+      debugPrint('Notification init failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Future<void> requestPermissions() async {
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        DarwinFlutterLocalNotificationsPlugin>();
-    await ios?.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await android?.requestNotificationsPermission();
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await android?.requestNotificationsPermission();
+    } catch (error, stackTrace) {
+      debugPrint('Notification permission failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Future<void> scheduleDailyNotifications({
@@ -923,33 +922,38 @@ class NotificationService {
     required bool lunchEnabled,
     required TimeOfDay lunchTime,
   }) async {
-    await _plugin.cancel(_clockInId);
-    await _plugin.cancel(_breakId);
-    await _plugin.cancel(_lunchId);
+    try {
+      await _plugin.cancel(_clockInId);
+      await _plugin.cancel(_breakId);
+      await _plugin.cancel(_lunchId);
 
-    if (clockInEnabled) {
-      await _scheduleDaily(
-        id: _clockInId,
-        title: 'Clock In',
-        body: 'Hora de iniciar tu jornada.',
-        time: clockInTime,
-      );
-    }
-    if (breakEnabled) {
-      await _scheduleDaily(
-        id: _breakId,
-        title: 'Break',
-        body: 'Hora de tu descanso.',
-        time: breakTime,
-      );
-    }
-    if (lunchEnabled) {
-      await _scheduleDaily(
-        id: _lunchId,
-        title: 'Lunch',
-        body: 'Hora de tu almuerzo.',
-        time: lunchTime,
-      );
+      if (clockInEnabled) {
+        await _scheduleDaily(
+          id: _clockInId,
+          title: 'Clock In',
+          body: 'Hora de iniciar tu jornada.',
+          time: clockInTime,
+        );
+      }
+      if (breakEnabled) {
+        await _scheduleDaily(
+          id: _breakId,
+          title: 'Break',
+          body: 'Hora de tu descanso.',
+          time: breakTime,
+        );
+      }
+      if (lunchEnabled) {
+        await _scheduleDaily(
+          id: _lunchId,
+          title: 'Lunch',
+          body: 'Hora de tu almuerzo.',
+          time: lunchTime,
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Scheduling notifications failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
@@ -984,7 +988,6 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
         ),
-        iOS: DarwinNotificationDetails(),
       ),
       androidAllowWhileIdle: true,
       uiLocalNotificationDateInterpretation:
